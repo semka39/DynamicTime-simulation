@@ -126,7 +126,7 @@ namespace SOE
                     float dx = cbit.position.x - bit2.position.x;
                     float dy = cbit.position.y - bit2.position.y;
                     float sumr2 = (float)Math.Pow(cbit.radius + bit2.radius, 2);
-                    float distance2 = dx * dx + dy * dy;
+                    float distance2 = (dx * dx + dy * dy) / 100;
 
                     if (distance2 == 0)
                         continue;

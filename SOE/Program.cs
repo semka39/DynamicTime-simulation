@@ -61,7 +61,7 @@ namespace SOE
             for (int i = 0; i < 30; i++)
             {
                 int mass = rnd.Next(1, 15);
-                Bit bit = new Bit(mass, mass * 2, new Point(rnd.Next(0, 1000), rnd.Next(0, 1000)));
+                Bit bit = new Bit(mass, mass * 2, new Point(rnd.Next(0, 1000), rnd.Next(0, 500)));
 
                 float Vscale = (float)rnd.NextDouble();
                 float Vangel = (float)rnd.Next((int)Math.Round(2 * Math.PI * 10000)) / 10000;
@@ -126,7 +126,7 @@ namespace SOE
                     float dx = cbit.position.x - bit2.position.x;
                     float dy = cbit.position.y - bit2.position.y;
                     float sumr2 = (float)Math.Pow(cbit.radius + bit2.radius, 2);
-                    float distance2 = (dx * dx + dy * dy) / 100;
+                    float distance2 = dx * dx + dy * dy;
 
                     if (distance2 == 0)
                         continue;
@@ -135,7 +135,7 @@ namespace SOE
 
                     int direction = distance2 > sumr2 ? -1 : 1;
 
-                    float force = (cbit.mass * bit2.mass) / distance2 * direction;
+                    float force = (cbit.mass * bit2.mass) * 100 / distance2 * direction;
 
                     // Применяем импульс отталкивания
                     cbit.AddImpulse(new Vector(force * cbit.mass, angle));

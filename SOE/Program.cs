@@ -6,7 +6,7 @@ namespace SOE
     {
         static PriorityQueue<Bit, float> bits = new PriorityQueue<Bit, float>();
 
-        static float curentTime = 0;
+        static float curentTime = 0, currentstep = 0;
         static Random rnd = new Random();
 
         // Инициализация SDL
@@ -105,6 +105,8 @@ namespace SOE
             bool running = true;
             while (running)
             {
+                bool render = currentstep % 100 == 0;
+
                 while (SDL.SDL_PollEvent(out SDL.SDL_Event e) != 0)
                 {
                     if (e.type == SDL.SDL_EventType.SDL_QUIT)
@@ -113,15 +115,19 @@ namespace SOE
 
                 bits.TryDequeue(out Bit cbit, out curentTime);
 
-                SDL.SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-                SDL.SDL_RenderClear(renderer);
-                DrawBit(renderer, cbit);
+                if (render)
+                {
+                    SDL.SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+                    SDL.SDL_RenderClear(renderer);
+                    DrawBit(renderer, cbit);
+                }
 
                 //взаимодействия
                 foreach (var ewithbit in bits.UnorderedItems)
                 {
                     Bit bit2 = ewithbit.Element;
-                    DrawBit(renderer, bit2);
+                    if (render)
+                        DrawBit(renderer, bit2);
 
                     float dx = cbit.position.x - bit2.position.x;
                     float dy = cbit.position.y - bit2.position.y;
@@ -142,9 +148,12 @@ namespace SOE
 
                 }
                 //взаимодействия
-                Graph.AddValue(curentTime - lastItTime);
-                Graph.Draw(renderer);
-                SDL.SDL_RenderPresent(renderer);
+                if (render)
+                {
+                    Graph.AddValue(curentTime - lastItTime);
+                    Graph.Draw(renderer);
+                    SDL.SDL_RenderPresent(renderer);
+                }
 
                 cbit.Activate(curentTime - cbit.lastActTime);
 
@@ -153,6 +162,7 @@ namespace SOE
                 bits.Enqueue(cbit, dt + curentTime);
 
                 lastItTime = curentTime;
+                currentstep++;
             }
         }
 

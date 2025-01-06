@@ -1,4 +1,5 @@
 ﻿using SDL2;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace SOE
 {
@@ -10,7 +11,7 @@ namespace SOE
         private static int _width, _height;
         private static readonly Random Rnd = new();
 
-        private const int RenderSpeed = 1000;
+        private static int RenderSpeed = 1000, SimulationSpeed = 1;
         private const float GravitationalConst = 15;
 
         private static float _offsetX, _offsetY, _scale = 1;
@@ -70,16 +71,23 @@ namespace SOE
                             running = false;
                             break;
                         case SDL.SDL_EventType.SDL_MOUSEWHEEL:
-                            const float whellstep = 1.5f;
+                            const float wheelstep = 1.5f;
                             float wheelmul = 1;
                             if (e.wheel.y > 0)
-                                wheelmul = whellstep;
+                                wheelmul = wheelstep;
                             else if (e.wheel.y < 0)
-                                wheelmul = 1 / whellstep;
+                                wheelmul = 1 / wheelstep;
 
-                            _offsetX *= wheelmul;
-                            _offsetY *= wheelmul;
+                            int mouseX, mouseY;
+                            SDL.SDL_GetMouseState(out mouseX, out mouseY);
+
+                            float worldX = (mouseX - _width / 2 - _offsetX) / _scale;
+                            float worldY = (mouseY - _height / 2 - _offsetY) / _scale;
+
                             _scale *= wheelmul;
+
+                            _offsetX = mouseX - _width / 2 - worldX * _scale;
+                            _offsetY = mouseY - _height / 2 - worldY * _scale;
                             break;
                         case SDL.SDL_EventType.SDL_KEYDOWN:
                             const int step = 20;
@@ -97,19 +105,35 @@ namespace SOE
                                 case SDL.SDL_Keycode.SDLK_a:
                                     _offsetX += step;
                                     break;
+
+                                case SDL.SDL_Keycode.SDLK_UP:
+                                    RenderSpeed += 50;
+                                    break;
+                                case SDL.SDL_Keycode.SDLK_DOWN:
+                                    RenderSpeed -= 50;
+                                    if (RenderSpeed < 1)
+                                        RenderSpeed = 1;
+                                    break;
+
+                                case SDL.SDL_Keycode.SDLK_RIGHT:
+                                    SimulationSpeed += 1;
+                                    break;
+                                case SDL.SDL_Keycode.SDLK_LEFT:
+                                    SimulationSpeed -= 1;
+                                    if (SimulationSpeed < 1)
+                                        SimulationSpeed = 1;
+                                    break;
                             }
                             break;
-
                     }
                 }
-
 
                 Bits.TryDequeue(out Bit currentBit, out _currentTime);
 
                 ProcessInteractions(currentBit);
                 currentBit.Activate(_currentTime - currentBit.LastActivationTime);
 
-                float deltaTime = 1 / currentBit.Velocity.Scale;
+                float deltaTime = SimulationSpeed / currentBit.Velocity.Scale;
                 Bits.Enqueue(currentBit, deltaTime + _currentTime);
 
                 bool render = _currentStep % RenderSpeed == 0;
@@ -134,6 +158,8 @@ namespace SOE
             }
 
             Graph.Draw(_renderer);
+            DisplayText(new IPoint(10, 70), 2, 3, $"render speed     - {RenderSpeed}");
+            DisplayText(new IPoint(10, 90), 2, 3, $"simulation speed - {SimulationSpeed}");
 
             SDL.SDL_RenderPresent(_renderer);
         }
@@ -172,11 +198,147 @@ namespace SOE
             }
         }
 
+        static void DisplayText(IPoint cpos, int size, int interval, string display)
+        {
+            void Interp(string cmds, int pos)
+            {
+                int s = pos * interval * size;
+
+                int[] cords = Array.ConvertAll(cmds.ToCharArray(), x => int.Parse(x.ToString()) * size);
+                for (int i = 2; i < cords.Length; i += 2)
+                {
+                    SDL.SDL_RenderDrawLine(_renderer, cords[i - 2] + s + cpos.x, cords[i - 1] + cpos.y, cords[i] + s + cpos.x, cords[i + 1] + cpos.y);
+                }
+            }
+
+            string text = display;
+            for (int i = 0; i < text.Length; i++)
+            {
+                switch (text[i])
+                {
+                    case '0':
+                        Interp("0004242000", i);
+                        break;
+                    case '1':
+                        Interp("141001", i);
+                        break;
+                    case '2':
+                        Interp("011021220424", i);
+                        break;
+                    case '3':
+                        Interp("001021120212231404", i);
+                        break;
+                    case '4':
+                        Interp("0002222420", i);
+                        break;
+                    case '5':
+                        Interp("20000112222404", i);
+                        break;
+                    case '6':
+                        Interp("200004242202", i);
+                        break;
+                    case '7':
+                        Interp("0020211214", i);
+                        break;
+                    case '8':
+                        Interp("002021030424230100", i);
+                        break;
+                    case '9':
+                        Interp("042420000222", i);
+                        break;
+                    case 'a':
+                        Interp("04011021242202", i);
+                        break;
+                    case 'b':
+                        Interp("00102112021223140400", i);
+                        break;
+                    case 'c':
+                        Interp("20000424", i);
+                        break;
+                    case 'd':
+                        Interp("00041423211000", i);
+                        break;
+                    case 'e':
+                        Interp("20000222020424", i);
+                        break;
+                    case 'f':
+                        Interp("040222020020", i);
+                        break;
+                    case 'g':
+                        Interp("200004242212", i);
+                        break;
+                    case 'h':
+                        Interp("000402222024", i);
+                        break;
+                    case 'i':
+                        Interp("002010140424", i);
+                        break;
+                    case 'j':
+                        Interp("002010140403", i);
+                        break;
+                    case 'k':
+                        Interp("00040212201224", i);
+                        break;
+                    case 'l':
+                        Interp("000424", i);
+                        break;
+                    case 'm':
+                        Interp("0400122024", i);
+                        break;
+                    case 'n':
+                        Interp("04002420", i);
+                        break;
+                    case 'o':
+                        Interp("0004242000", i);
+                        break;
+                    case 'p':
+                        Interp("040010211202", i);
+                        break;
+                    case 'q':
+                        Interp("242010011222", i);
+                        break;
+                    case 'r':
+                        Interp("040010211202122324", i);
+                        break;
+                    case 's':
+                        Interp("211001231403", i);
+                        break;
+                    case 't':
+                        Interp("14100020", i);
+                        break;
+                    case 'u':
+                        Interp("00042420", i);
+                        break;
+                    case 'v':
+                        Interp("001420", i);
+                        break;
+                    case 'w':
+                        Interp("0004122420", i);
+                        break;
+                    case 'x':
+                        Interp("0024122004", i);
+                        break;
+                    case 'y':
+                        Interp("04201200", i);
+                        break;
+                    case 'z':
+                        Interp("00200424", i);
+                        break;
+                    case '-':
+                        Interp("0232", i);
+                        break;
+                    default:
+                        break;
+                }
+            }
+            return;
+        }
+
         static void DrawBit(IntPtr renderer, Bit bit)
         {
             // Масштабируем центр и радиус
-            int centerX = (int)((bit.Position.x * _scale) + (_width / 2)) + (int)_offsetX;
-            int centerY = (int)((bit.Position.y * _scale) + (_height / 2)) + (int)_offsetY;
+            int centerX = (int)(bit.Position.x * _scale) + (int)_offsetX + (_width / 2);
+            int centerY = (int)(bit.Position.y * _scale) + (int)_offsetY + (_height / 2);
             int radius = (int)(bit.Radius * _scale);
 
             bool xInScreen = centerX + radius > 0 && centerX - radius < _width;
@@ -213,7 +375,6 @@ namespace SOE
             SDL.SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255); // Синий
             SDL.SDL_RenderDrawLine(renderer, velocityEndX, velocityEndY, forceEndX, forceEndY);
         }
-
 
         struct Vector
         {
@@ -275,6 +436,16 @@ namespace SOE
             }
         }
 
+        struct IPoint
+        {
+            public int x, y;
+            public IPoint(int x, int y)
+            {
+                this.x = x;
+                this.y = y;
+            }
+        }
+
         class Bit
         {
             public float Mass;
@@ -317,7 +488,7 @@ namespace SOE
             private static readonly List<float> values = new List<float>();
             private const int GraphHeight = 50; // Высота графика
             private const int OffsetX = 10;  // Смещение по Y
-            private const int OffsetY = 40;  // Смещение по Y
+            private const int OffsetY = 10;  // Смещение по Y
 
             public static void AddValue(float value)
             {

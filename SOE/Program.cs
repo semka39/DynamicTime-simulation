@@ -1,7 +1,4 @@
 ﻿using SDL2;
-using System.Drawing;
-using System.Numerics;
-using System.Reflection;
 
 namespace SOE
 {
@@ -10,7 +7,13 @@ namespace SOE
         private static readonly PriorityQueue<Bit, float> Bits = new();
         private static float _currentTime = 0;
         private static float _currentStep = 0;
+        private static int _width, _height;
         private static readonly Random Rnd = new();
+
+        private const int RenderSpeed = 1000;
+        private const float GravitationalConst = 15;
+
+        private static float centX, centY, _offsetX, _offsetY, _scale = 1;
 
         // SDL Objects
         private static IntPtr _window;
@@ -38,14 +41,9 @@ namespace SOE
                 int mass = Rnd.Next(1, 15);
                 Bit bit = new(mass, mass * 2, new Point(Rnd.Next(0, 1000), Rnd.Next(0, 500)));
 
-                float velocityScale = (float)Rnd.NextDouble();
-                float velocityAngle = (float)Rnd.Next((int)Math.Round(2 * Math.PI * 10000)) / 10000;
-                bit.AddForce(new Vector(velocityScale, velocityAngle));
-
-                if (i == 5)
-                {
-                    bit.AddForce(new Vector(60, velocityAngle));
-                }
+                float forceScale = Rnd.Next(10);
+                float forceAngle = (float)Rnd.Next((int)Math.Round(2 * Math.PI * 10000)) / 10000;
+                bit.AddForce(new Vector(forceScale, forceAngle));
 
                 Bits.Enqueue(bit, 0);
             }
@@ -54,7 +52,7 @@ namespace SOE
         private static float CalculateForce(Bit bit1, Bit bit2, float distanceSquared, float combinedRadius)
         {
             int direction = distanceSquared > combinedRadius * combinedRadius ? -1 : 1;
-            return (bit1.Mass * bit2.Mass * 5) / distanceSquared * direction;
+            return (bit1.Mass * bit2.Mass * GravitationalConst) / distanceSquared * direction;
         }
 
         private static void RunSimulation()
@@ -66,11 +64,40 @@ namespace SOE
             {
                 while (SDL.SDL_PollEvent(out SDL.SDL_Event e) != 0)
                 {
-                    if (e.type == SDL.SDL_EventType.SDL_QUIT)
+                    switch (e.type)
                     {
-                        running = false;
+                        case SDL.SDL_EventType.SDL_QUIT:
+                            running = false;
+                            break;
+                        case SDL.SDL_EventType.SDL_MOUSEWHEEL:
+                            const float whellstep = 1.5f;
+                            if (e.wheel.y > 0)
+                                _scale *= whellstep;
+                            else if (e.wheel.y < 0)
+                                _scale /= whellstep;
+                            break;
+                        case SDL.SDL_EventType.SDL_KEYDOWN:
+                            const int step = 60;
+                            switch (e.key.keysym.sym)
+                            {
+                                case SDL.SDL_Keycode.SDLK_w:
+                                    _offsetY += step;
+                                    break;
+                                case SDL.SDL_Keycode.SDLK_s:
+                                    _offsetY -= step;
+                                    break;
+                                case SDL.SDL_Keycode.SDLK_d:
+                                    _offsetX -= step;
+                                    break;
+                                case SDL.SDL_Keycode.SDLK_a:
+                                    _offsetX += step;
+                                    break;
+                            }
+                            break;
+
                     }
                 }
+
 
                 Bits.TryDequeue(out Bit currentBit, out _currentTime);
 
@@ -80,7 +107,7 @@ namespace SOE
                 float deltaTime = 1 / currentBit.Velocity.Scale;
                 Bits.Enqueue(currentBit, deltaTime + _currentTime);
 
-                bool render = _currentStep % 500 == 0;
+                bool render = _currentStep % RenderSpeed == 0;
                 Graph.AddValue(_currentTime - lastIterationTime);
                 if (render) RenderScene();
 
@@ -91,14 +118,23 @@ namespace SOE
 
         private static void RenderScene()
         {
+            SDL.SDL_GetWindowSize(_window, out _width, out _height);
             SDL.SDL_SetRenderDrawColor(_renderer, 0, 0, 0, 255);
             SDL.SDL_RenderClear(_renderer);
+
+            float ncx = 0, ncy = 0;
 
             foreach (var bitItem in Bits.UnorderedItems)
             {
                 Bit bit = bitItem.Element;
                 DrawBit(_renderer, bit);
+                ncx += bit.Position.x;
+                ncy += bit.Position.y;
             }
+
+            centX = ncx / Bits.Count;
+            centY = ncy / Bits.Count;
+
             Graph.Draw(_renderer);
 
             SDL.SDL_RenderPresent(_renderer);
@@ -140,39 +176,46 @@ namespace SOE
 
         static void DrawBit(IntPtr renderer, Bit bit)
         {
-            int centerX = (int)bit.Position.x + 100; // Центр круга по X
-            int centerY = (int)bit.Position.y + 100; // Центр круга по Y
-            int radius = (int)bit.Radius;           // Радиус круга
+            // Масштабируем центр и радиус
+            int centerX = (int)((bit.Position.x * _scale) + (_width / 2 - (centX * _scale))) + (int)(_offsetX * _scale);
+            int centerY = (int)((bit.Position.y * _scale) + (_height / 2 - (centY * _scale))) + (int)(_offsetY * _scale);
+            int radius = (int)(bit.Radius * _scale);
 
-            // Цвет круга (например, красный)
+            bool xInScreen = centerX + radius > 0 && centerX - radius < _width;
+            bool yInScreen = centerY + radius > 0 && centerY - radius < _height;
+
+            if (!xInScreen || !yInScreen)
+                return;
+
             SDL.SDL_SetRenderDrawColor(renderer, bit.colorR, bit.colorG, bit.colorB, 255);
 
-            // Рисуем круг
             for (int w = 0; w < radius * 2; w++)
             {
                 for (int h = 0; h < radius * 2; h++)
                 {
-                    int dx = radius - w; // смещение по оси X
-                    int dy = radius - h; // смещение по оси Y
-                    if ((dx * dx + dy * dy) <= (radius * radius)) // проверка внутри круга
+                    int dx = radius - w;
+                    int dy = radius - h;
+                    if ((dx * dx + dy * dy) <= (radius * radius))
                     {
                         SDL.SDL_RenderDrawPoint(renderer, centerX + dx, centerY + dy);
                     }
                 }
             }
 
-            // Рисуем направление скорости (зелёная линия)
-            int velocityEndX = centerX + (int)(bit.Velocity.Scale * 5 * Math.Cos(bit.Velocity.Angle));
-            int velocityEndY = centerY + (int)(bit.Velocity.Scale * 5 * Math.Sin(bit.Velocity.Angle));
+            // Масштабируем направление скорости
+            Vector LastVelocity = bit.Velocity + (bit.LastForce / bit.Mass * -1);
+            int velocityEndX = centerX + (int)(LastVelocity.Scale * 5 * Math.Cos(bit.Velocity.Angle) * _scale);
+            int velocityEndY = centerY + (int)(LastVelocity.Scale * 5 * Math.Sin(bit.Velocity.Angle) * _scale);
             SDL.SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255); // Зелёный
             SDL.SDL_RenderDrawLine(renderer, centerX, centerY, velocityEndX, velocityEndY);
 
-            // Рисуем направление силы (синяя линия)
-            int forceEndX = centerX + (int)(bit.LastForce.Scale * 5 * Math.Cos(bit.LastForce.Angle));
-            int forceEndY = centerY + (int)(bit.LastForce.Scale * 5 * Math.Sin(bit.LastForce.Angle));
+            // Масштабируем направление силы
+            int forceEndX = velocityEndX + (int)(bit.LastForce.Scale * 5 * Math.Cos(bit.LastForce.Angle) * _scale);
+            int forceEndY = velocityEndY + (int)(bit.LastForce.Scale * 5 * Math.Sin(bit.LastForce.Angle) * _scale);
             SDL.SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255); // Синий
-            SDL.SDL_RenderDrawLine(renderer, centerX, centerY, forceEndX, forceEndY);
+            SDL.SDL_RenderDrawLine(renderer, velocityEndX, velocityEndY, forceEndX, forceEndY);
         }
+
 
         struct Vector
         {
@@ -274,9 +317,8 @@ namespace SOE
         static class Graph
         {
             private static readonly List<float> values = new List<float>();
-            private const int MaxValues = 1000; // Максимальное количество значений
             private const int GraphHeight = 50; // Высота графика
-            private const int OffsetX = 1000; // Смещение по X (правый верхний угол)
+            private const int OffsetX = 10;  // Смещение по Y
             private const int OffsetY = 40;  // Смещение по Y
 
             public static void AddValue(float value)
@@ -285,7 +327,7 @@ namespace SOE
                 values.Add(value);
 
                 // Удаляем старые значения, если их больше MaxValues
-                if (values.Count > MaxValues)
+                if (values.Count > _width - OffsetX * 2)
                 {
                     values.RemoveAt(0);
                 }
@@ -310,9 +352,9 @@ namespace SOE
                     float normalizedCurr = values[i] / maxValue * GraphHeight;
 
                     // Рассчитываем позиции точек
-                    int x1 = OffsetX - (i - 1);
+                    int x1 = _width - OffsetX - (i - 1);
                     int y1 = OffsetY + GraphHeight - (int)normalizedPrev;
-                    int x2 = OffsetX - i;
+                    int x2 = _width - OffsetX - i;
                     int y2 = OffsetY + GraphHeight - (int)normalizedCurr;
 
                     // Рисуем линию между двумя точками

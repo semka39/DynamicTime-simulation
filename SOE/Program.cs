@@ -13,7 +13,7 @@ namespace SOE
         private const int RenderSpeed = 1000;
         private const float GravitationalConst = 15;
 
-        private static float centX, centY, _offsetX, _offsetY, _scale = 1;
+        private static float _offsetX, _offsetY, _scale = 1;
 
         // SDL Objects
         private static IntPtr _window;
@@ -39,7 +39,7 @@ namespace SOE
             for (int i = 0; i < count; i++)
             {
                 int mass = Rnd.Next(1, 15);
-                Bit bit = new(mass, mass * 2, new Point(Rnd.Next(0, 1000), Rnd.Next(0, 500)));
+                Bit bit = new(mass, mass * 2, new Point(Rnd.Next(-500, 500), Rnd.Next(-500, 500)));
 
                 float forceScale = Rnd.Next(10);
                 float forceAngle = (float)Rnd.Next((int)Math.Round(2 * Math.PI * 10000)) / 10000;
@@ -71,13 +71,18 @@ namespace SOE
                             break;
                         case SDL.SDL_EventType.SDL_MOUSEWHEEL:
                             const float whellstep = 1.5f;
+                            float wheelmul = 1;
                             if (e.wheel.y > 0)
-                                _scale *= whellstep;
+                                wheelmul = whellstep;
                             else if (e.wheel.y < 0)
-                                _scale /= whellstep;
+                                wheelmul = 1 / whellstep;
+
+                            _offsetX *= wheelmul;
+                            _offsetY *= wheelmul;
+                            _scale *= wheelmul;
                             break;
                         case SDL.SDL_EventType.SDL_KEYDOWN:
-                            const int step = 60;
+                            const int step = 20;
                             switch (e.key.keysym.sym)
                             {
                                 case SDL.SDL_Keycode.SDLK_w:
@@ -122,18 +127,11 @@ namespace SOE
             SDL.SDL_SetRenderDrawColor(_renderer, 0, 0, 0, 255);
             SDL.SDL_RenderClear(_renderer);
 
-            float ncx = 0, ncy = 0;
-
             foreach (var bitItem in Bits.UnorderedItems)
             {
                 Bit bit = bitItem.Element;
                 DrawBit(_renderer, bit);
-                ncx += bit.Position.x;
-                ncy += bit.Position.y;
             }
-
-            centX = ncx / Bits.Count;
-            centY = ncy / Bits.Count;
 
             Graph.Draw(_renderer);
 
@@ -177,8 +175,8 @@ namespace SOE
         static void DrawBit(IntPtr renderer, Bit bit)
         {
             // Масштабируем центр и радиус
-            int centerX = (int)((bit.Position.x * _scale) + (_width / 2 - (centX * _scale))) + (int)(_offsetX * _scale);
-            int centerY = (int)((bit.Position.y * _scale) + (_height / 2 - (centY * _scale))) + (int)(_offsetY * _scale);
+            int centerX = (int)((bit.Position.x * _scale) + (_width / 2)) + (int)_offsetX;
+            int centerY = (int)((bit.Position.y * _scale) + (_height / 2)) + (int)_offsetY;
             int radius = (int)(bit.Radius * _scale);
 
             bool xInScreen = centerX + radius > 0 && centerX - radius < _width;

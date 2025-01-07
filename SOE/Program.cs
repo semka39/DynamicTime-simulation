@@ -40,7 +40,7 @@ namespace SOE
             for (int i = 0; i < count; i++)
             {
                 int mass = Rnd.Next(1, 15);
-                Bit bit = new(mass, mass * 2, new Point(Rnd.Next(-500, 500), Rnd.Next(-500, 500)));
+                Bit bit = new(mass, mass * 2, new Point(Rnd.Next(-15000, 15000), Rnd.Next(-15000, 15000)));
 
                 float forceScale = Rnd.Next(10);
                 float forceAngle = (float)Rnd.Next((int)Math.Round(2 * Math.PI * 10000)) / 10000;
@@ -160,6 +160,7 @@ namespace SOE
             Graph.Draw(_renderer);
             DisplayText(new IPoint(10, 70), 2, 3, $"render speed     - {RenderSpeed}");
             DisplayText(new IPoint(10, 90), 2, 3, $"simulation speed - {SimulationSpeed}");
+            DisplayText(new IPoint(10, 110), 2, 3, $"scale            - {_scale}");
 
             SDL.SDL_RenderPresent(_renderer);
         }
@@ -325,7 +326,10 @@ namespace SOE
                         Interp("00200424", i);
                         break;
                     case '-':
-                        Interp("0232", i);
+                        Interp("0222", i);
+                        break;
+                    case ',':
+                        Interp("1314", i);
                         break;
                     default:
                         break;

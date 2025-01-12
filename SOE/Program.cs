@@ -161,6 +161,8 @@ namespace SOE
             DisplayText(new IPoint(10, 70), 2, 3, $"render speed     - {RenderSpeed}");
             DisplayText(new IPoint(10, 90), 2, 3, $"simulation speed - {SimulationSpeed}");
             DisplayText(new IPoint(10, 110), 2, 3, $"scale            - {_scale}");
+            DisplayText(new IPoint(10, 130), 2, 3, $"time             - {_currentTime}");
+            DisplayText(new IPoint(10, 150), 2, 3, $"step             - {_currentStep}");
 
             SDL.SDL_RenderPresent(_renderer);
         }
@@ -212,7 +214,7 @@ namespace SOE
                 }
             }
 
-            string text = display;
+            string text = display.ToLower();
             for (int i = 0; i < text.Length; i++)
             {
                 switch (text[i])

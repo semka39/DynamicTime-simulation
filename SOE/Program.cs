@@ -40,7 +40,7 @@ namespace SOE
             for (int i = 0; i < count; i++)
             {
                 int mass = Rnd.Next(1, 15);
-                Bit bit = new(mass, mass * 2, new Point(Rnd.Next(-15000, 15000), Rnd.Next(-15000, 15000)));
+                Bit bit = new(mass, mass * 2, new Point(Rnd.Next(-1500, 1500), Rnd.Next(-1500, 1500)));
 
                 float forceScale = Rnd.Next(10);
                 float forceAngle = (float)Rnd.Next((int)Math.Round(2 * Math.PI * 10000)) / 10000;
@@ -133,7 +133,7 @@ namespace SOE
                 ProcessInteractions(currentBit);
                 currentBit.Activate(_currentTime - currentBit.LastActivationTime);
 
-                float deltaTime = SimulationSpeed / currentBit.Velocity.Scale;
+                float deltaTime = currentBit.Velocity.Scale == 0 ? 0 : SimulationSpeed / currentBit.Velocity.Scale;
                 Bits.Enqueue(currentBit, deltaTime + _currentTime);
 
                 bool render = _currentStep % RenderSpeed == 0;
